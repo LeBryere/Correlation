@@ -1,0 +1,112 @@
+//@version=6
+indicator("Korreláció a BTCUSDC-hez / 🟠 High, 🔵 Open, 🔴 Close, ⚪ Low", overlay=true)
+
+// Színek definiálása
+color_open  = color.blue
+color_close = color.red
+color_high  = color.orange
+color_low   = color.white
+
+// Csak egyszer hozzuk létre a címkét
+if bar_index == 0
+    label.new(x = bar_index, y = high, text = "🟠 High\n🔵 Open\n🔴 Close\n⚪ Low", textcolor = color.white, size = size.small, style = label.style_label_down, color = color.gray)
+
+// Időtávhoz tartozó length beállítása
+var int length = switch timeframe.period
+    "1"   => 5
+    "5"   => 6
+    "60"  => 6
+    "240" => 2
+    => 5
+
+// Adatok lekérése
+btc_open  = request.security("BINANCE:BTCUSD", timeframe.period, open)
+btc_high  = request.security("BINANCE:BTCUSD", timeframe.period, high)
+btc_low   = request.security("BINANCE:BTCUSD", timeframe.period, low)
+btc_close = request.security("BINANCE:BTCUSD", timeframe.period, close)
+
+current_open  = request.security(syminfo.tickerid, timeframe.period, open)
+current_high  = request.security(syminfo.tickerid, timeframe.period, high)
+current_low   = request.security(syminfo.tickerid, timeframe.period, low)
+current_close = request.security(syminfo.tickerid, timeframe.period, close)
+
+// Korreláció számító függvény
+calculate_correlation(btc_price, current_price) =>
+    btc_mean = ta.sma(btc_price, length)
+    btc_stddev = ta.stdev(btc_price, length)
+    current_mean = ta.sma(current_price, length)
+    current_stddev = ta.stdev(current_price, length)
+    covariance = ta.sma((btc_price - btc_mean) * (current_price - current_mean), length)
+
+    btc_stddev * current_stddev != 0 ? math.min(1, math.max(-1, covariance / (btc_stddev * current_stddev))) : 0
+
+// Korrelációk kiszámítása
+correlation_open  = calculate_correlation(btc_open, current_open)
+correlation_close = calculate_correlation(btc_close, current_close)
+correlation_high  = calculate_correlation(btc_high, current_high)
+correlation_low   = calculate_correlation(btc_low, current_low)
+
+// Átlagos tartomány kiszámítása
+average_range = ta.sma(high - low, length)
+
+// Vizualizáció (plotshape használata a fő kódban)
+plotshape(series=correlation_open < 0 ? high + (average_range * 2) : na, location=location.absolute, color=color.new(color_open, 50), style=shape.circle, size=size.tiny)
+plotshape(series=correlation_close < 0 ? low - (average_range * 2) : na, location=location.absolute, color=color.new(color_close, 50), style=shape.circle, size=size.tiny)
+plotshape(series=correlation_high < 0 ? high + (average_range * 3) : na, location=location.absolute, color=color.new(color_high, 50), style=shape.circle, size=size.tiny)
+plotshape(series=correlation_low < 0 ? low - (average_range * 3) : na, location=location.absolute, color=color.new(color_low, 50), style=shape.circle, size=size.tiny)
+
+plot_corr_open = plot(open + (correlation_close * average_range * 2), color=correlation_close >= 0 ?  color.new(color.blue, 75) : color.new(color.yellow, 0), style=plot.style_line, linewidth=1, title="Korreláció")
+fill(plot_corr_open, plot(open > open ? open : open, color = color.new(color.white, 100)), color=color.new(color.blue, 99))
+fill(plot_corr_open, plot(high, color = color.new(color.white, 100)), color=color.new(color.blue, 95))
+fill(plot_corr_open, plot(open < open ? open : open, color = color.new(color.white, 100)), color=color.new(color.blue, 99))
+fill(plot_corr_open, plot(low, color = color.new(color.white, 100)), color=color.new(color.blue, 95))
+
+length_l = input.int(14, title="SMA Hossz")
+sma = ta.sma(close, length_l)
+trend_color = close > sma ? color.green : color.red
+line_width =  1
+line.new(x1=bar_index[length_l], y1=sma[length], x2=bar_index, y2=sma, color=color.new(trend_color, 60), width=line_width)
+plot(sma, title="SMA", color=color.new(trend_color, 80), linewidth=(line_width + 1))
+
+var line[] lines = array.new_line(2)
+var int lineCount = 0
+
+if barstate.islast
+    newLine = line.new(x1=bar_index[20], y1=high[20], x2=bar_index, y2=low, color=color.blue, width=1, style=line.style_solid , extend=extend.both)
+
+    label.new(x=bar_index[20], y=high[20], text="•", color=color.new(color.blue, 90), textcolor=color.white, style=label.style_circle, size=size.tiny, yloc=yloc.price)
+    label.new(x=bar_index, y=low, text="•", color=color.new(color.blue, 90), textcolor=color.white, style=label.style_circle, size=size.tiny, yloc=yloc.price)
+
+    if lineCount >= 2
+        oldestLine = array.get(lines, 0)
+        line.delete(oldestLine)
+        array.remove(lines, 0)
+
+    // Hozzáadjuk az új vonalat a tömbhöz
+    array.push(lines, newLine)
+    lineCount := array.size(lines)
+
+var highLine = line.new(x1=bar_index[10], y1=close[10], x2=bar_index, y2=close, color=color.green, extend=extend.both)
+var lowLine = line.new(x1=bar_index[10], y1=close[10], x2=bar_index, y2=close, color=color.red, extend=extend.both)
+
+var label highLabel = label.new(x=na, y=na, text="", color=color.green, textcolor=color.white, style=label.style_label_down, yloc=yloc.price)
+var label lowLabel = label.new(x=na, y=na, text="", color=color.red, textcolor=color.white, style=label.style_label_up, yloc=yloc.price)
+
+newHigh = high == ta.highest(high, 20)
+newLow  = low == ta.lowest(low, 20)
+
+if newHigh
+    line.set_xy1(highLine, x=bar_index[10], y=high)
+    line.set_xy2(highLine, x=bar_index, y=high)
+    // Címke frissítése a legmagasabb pontra
+    label.set_xy(highLabel, x=bar_index, y=high)
+    label.set_text(highLabel, "High")
+    label.set_color(highLabel, color.green)
+
+if newLow
+    line.set_xy1(lowLine, x=bar_index[10], y=low)
+    line.set_xy2(lowLine, x=bar_index, y=low)
+    // Címke frissítése a legalacsonyabb pontra
+    label.set_xy(lowLabel, x=bar_index, y=low)
+    label.set_text(lowLabel, "Low")
+    label.set_color(lowLabel, color.red)
