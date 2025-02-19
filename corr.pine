@@ -68,23 +68,23 @@ line_width =  1
 line.new(x1=bar_index[length_l], y1=sma[length], x2=bar_index, y2=sma, color=color.new(trend_color, 60), width=line_width)
 plot(sma, title="SMA", color=color.new(trend_color, 80), linewidth=(line_width + 1))
 
-var line[] lines = array.new_line(2)
-var int lineCount = 0
+/ --- Kék vonal rajzolásának módosítása ---
+var line blue_line = na // Deklaráljuk a vonalat a globális scope-ban
 
 if barstate.islast
-    newLine = line.new(x1=bar_index[20], y1=high[20], x2=bar_index, y2=low, color=color.blue, width=1, style=line.style_solid , extend=extend.both)
+ // Végpont adatai (aktuális bár)
+    x1 = bar_index
+    y1 = close > open ? high : low  // Ha zöld a gyertya, high, ha piros, low
+    // Kezdőpont adatai (20 bárral korábbi)
+    x2 = bar_index[20]
+    y2 = close > open ? high[20] : low[20]  // Ha zöld a gyertya, high, ha piros, low   
 
-    label.new(x=bar_index[20], y=high[20], text="•", color=color.new(color.blue, 90), textcolor=color.white, style=label.style_circle, size=size.tiny, yloc=yloc.price)
-    label.new(x=bar_index, y=low, text="•", color=color.new(color.blue, 90), textcolor=color.white, style=label.style_circle, size=size.tiny, yloc=yloc.price)
-
-    if lineCount >= 2
-        oldestLine = array.get(lines, 0)
-        line.delete(oldestLine)
-        array.remove(lines, 0)
-
-    // Hozzáadjuk az új vonalat a tömbhöz
-    array.push(lines, newLine)
-    lineCount := array.size(lines)
+    // Vonal rajzolása
+    blue_line := line.new(x1, y1, x2, y2, color=color.blue, width=2, style=line.style_solid, extend=extend.both)
+    line.set_color(blue_line[1], color.rgb(113, 185, 243))  // Az előző vonalat zöldre állítjuk
+    line.set_style(blue_line[1], line.style_dashed)
+    line.set_width(blue_line[1], width=1)
+    line.delete(blue_line[3])
 
 var highLine = line.new(x1=bar_index[10], y1=close[10], x2=bar_index, y2=close, color=color.green, extend=extend.both)
 var lowLine = line.new(x1=bar_index[10], y1=close[10], x2=bar_index, y2=close, color=color.red, extend=extend.both)
