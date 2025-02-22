@@ -68,7 +68,7 @@ line_width =  1
 line.new(x1=bar_index[length_l], y1=sma[length], x2=bar_index, y2=sma, color=color.new(trend_color, 60), width=line_width)
 plot(sma, title="SMA", color=color.new(trend_color, 80), linewidth=(line_width + 1))
 
-/ --- Kék vonal rajzolásának módosítása ---
+// --- Kék vonal rajzolásának módosítása ---
 var line blue_line = na // Deklaráljuk a vonalat a globális scope-ban
 
 if barstate.islast
